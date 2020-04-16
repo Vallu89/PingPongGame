@@ -1,0 +1,251 @@
+//---------------------------------------------------------------------------
+
+#include <vcl.h>
+#include <iostream>
+#include <cstdlib>
+#pragma hdrstop
+#include "mmsystem.h"
+
+#include "Unit1.h"
+//---------------------------------------------------------------------------
+#pragma package(smart_init)
+#pragma resource "*.dfm"
+TForm1 *Form1;
+
+int y = 8;
+int x = 8;
+int paddley= 20;
+bool IsMirroring = false;
+bool miss; // <-- lewy - true, prawy false;
+int leftScore = 0, rightScore = 0;
+int matchScore, matchTime;
+int intervalInSecond;
+
+void whoMiss(bool miss, TLabel *Label1,TLabel *leftPlayerScore, TLabel *rightPlayerScore)
+{
+        if ( miss )
+        {
+                Label1->Caption = "Punkt dla gracza prawego >";
+                Label1->Visible = true;
+                Application->ProcessMessages(); Sleep(2000);
+                Label1->Visible = false;
+                x = 8;
+                y = 8;
+                rightPlayerScore->Caption = ++rightScore;
+
+        }
+        else
+        {
+
+                Label1->Caption = "< Punkt dla gracza lewego";
+                Label1->Visible = true;
+                Application->ProcessMessages(); Sleep(2000);
+                Label1->Visible = false;
+                x = 8;
+                y = 8;
+                leftPlayerScore->Caption = ++leftScore;
+        }
+}
+void moveMechanic( TShape *ball, TShape *background,TShape *paddle1,TShape *paddle2, TShape *Shape1, TLabel *Label1, TTimer *timerPilki,TLabel *leftPlayerScore, TLabel *rightPlayerScore)
+{
+        if (ball->Top + ball->Height - Shape1->Height > background->Height )
+                y = -y;
+        else if ( ball->Top < background->Top )
+                y = -y;
+        else if ( ( (ball->Top + ball->Height/2) >= paddle1->Top && //<- odbicie pi³eczki od paletki lewej
+                    (ball->Top + ball->Height/2) <= (paddle1->Top + paddle1->Height)) &&
+                    ball->Left <= paddle1->Left + paddle1->Width )
+                    {
+                       if (x>0)
+                        ++x;
+                       else
+                        --x;
+                       if (y>0)
+                        ++y;
+                       else
+                        --y;
+                       x = -x;
+
+                    }
+
+        else if ( ( (ball->Top + ball->Height/2) >= paddle2->Top && //<- odbicie pi³eczki od paletki prawej
+                    (ball->Top + ball->Height/2) <= (paddle2->Top + paddle2->Height)) &&
+                    ball->Left + ball->Width >= paddle2->Left    )
+                    {
+                        if (x>0)
+                        ++x;
+                       else
+                        --x;
+                       if (y>0)
+                        ++y;
+                       else
+                        --y;
+                        x = -x;
+
+                    }
+
+        else if ( ball->Left >= background->Width)
+                {
+                        timerPilki->Enabled = false;
+                        miss = false;
+                        whoMiss(miss,Label1,leftPlayerScore,rightPlayerScore);
+                        ball->Top = 280;
+                        ball->Left = 630;
+                        timerPilki->Enabled = true;
+                }
+        else if ( ball->Left <= 0)
+                {
+                        timerPilki->Enabled = false;
+                        miss = true;
+                        whoMiss(miss,Label1,leftPlayerScore,rightPlayerScore);
+                        ball->Top = 280;
+                        ball->Left = 630;
+                        timerPilki->Enabled = true;
+                }
+
+}
+//---------------------------------------------------------------------------
+__fastcall TForm1::TForm1(TComponent* Owner)
+        : TForm(Owner)
+{
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm1::timerPilkiTimer(TObject *Sender)
+{
+        ball->Top +=y;
+        ball->Left +=x;
+
+        moveMechanic(ball,background,paddle1,paddle2,Shape1,Label1,timerPilki,leftPlayerScore,rightPlayerScore);
+
+}
+//---------------------------------------------------------------------------
+
+
+void __fastcall TForm1::turnUpPaddle1Timer(TObject *Sender)
+{
+        if(paddle1->Top - Shape1->Height -12 > 10)
+                paddle1->Top += -paddley;
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm1::turnDownPaddle1Timer(TObject *Sender)
+{
+        if(paddle1->Top + paddle1->Height < background->Height + Shape1->Height -14)
+                paddle1->Top += paddley;
+}
+//---------------------------------------------------------------------------
+
+
+void __fastcall TForm1::FormKeyDown(TObject *Sender, WORD &Key,
+      TShiftState Shift)
+{
+        if ( Key == 0x57)
+                turnUpPaddle1->Enabled = true;
+        else if ( Key == 0x53)
+                turnDownPaddle1->Enabled = true;
+
+        if ( Key == VK_UP )
+             turnUpPaddle2->Enabled = true;
+        else if ( Key == VK_DOWN )
+                turnDownPaddle2->Enabled = true;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm1::FormKeyUp(TObject *Sender, WORD &Key,
+      TShiftState Shift)
+{
+        if ( Key == 0x57)
+                turnUpPaddle1->Enabled = false;
+        else if ( Key == 0x53)
+                turnDownPaddle1->Enabled = false;
+
+        if ( Key == VK_UP )
+             turnUpPaddle2->Enabled = false;
+        else if ( Key == VK_DOWN )
+                turnDownPaddle2->Enabled = false;
+
+}
+//---------------------------------------------------------------------------
+
+
+void __fastcall TForm1::turnUpPaddle2Timer(TObject *Sender)
+{
+        if(paddle2->Top - Shape1->Height -12 > 10)
+                paddle2->Top += -paddley;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm1::turnDownPaddle2Timer(TObject *Sender)
+{
+        if(paddle2->Top + paddle2->Height < background->Height+ Shape1->Height -20)
+                paddle2->Top += paddley;
+
+}
+//---------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+void __fastcall TForm1::Timer1Timer(TObject *Sender)
+{
+        int hour, minute, second,timeToStop;
+        AnsiString hr, min, sec;
+
+        intervalInSecond++;
+
+        timeToStop = intervalInSecond % matchTime;
+
+        hour = intervalInSecond / 3600;
+        if (hour <10)
+                hr = "0" + IntToStr( hour );
+        else
+                hr = IntToStr( hour );
+
+        minute = (intervalInSecond - 3600 * hour ) /60;
+        if ( minute < 10 )
+                min = "0" + IntToStr( minute );
+        else
+                min = IntToStr( minute );
+
+        second = intervalInSecond - (3600 * hour) - (60 * minute);
+        if ( second < 10 )
+                sec = "0"+IntToStr( second );
+        else
+                sec = IntToStr( second );
+
+        if ( timeToStop == 0 )
+        {
+                Label1->Visible = true;
+                Timer1->Enabled = false;
+                timerPilki->Enabled = false;
+        }
+
+
+        Label2->Caption = min+":"+sec;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm1::N5min1Click(TObject *Sender)
+{
+        Timer1->Enabled = true;
+        intervalInSecond = 0;
+        matchTime = 300;
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm1::N10min1Click(TObject *Sender)
+{
+        Timer1->Enabled = true;
+        intervalInSecond = 0;
+        matchTime = 600;
+}
+//---------------------------------------------------------------------------
+
